@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GenAI Application</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        input[type="file"],
+        input[type="text"],
+        button {
+            margin: 10px 0;
+            display: block;
+        }
+
+        #result {
+            margin-top: 20px;
+            font-size: 16px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>GenAI Application</h1>
+    <h2>Generate Notes</h2>
+    <input type="file" id="fileInputNotes" accept=".mp4">
+    <input type="text" id="youtubeUrlInputNotes" placeholder="Enter YouTube URL">
+    <button onclick="generate('notes')">Generate Notes</button>
+
+    <h2>Generate Quiz</h2>
+    <input type="file" id="fileInputQuiz" accept=".mp4">
+    <input type="text" id="youtubeUrlInputQuiz" placeholder="Enter YouTube URL">
+    <button onclick="generate('quiz')">Generate Quiz</button>
+
+    <div id="result"></div>
+
+    <script>
+        function generate(type) {
+            const fileInput = type === 'notes' ? document.getElementById('fileInputNotes') : document.getElementById('fileInputQuiz');
+            const youtubeUrlInput = type === 'notes' ? document.getElementById('youtubeUrlInputNotes') : document.getElementById('youtubeUrlInputQuiz');
+
+            const file = fileInput.files[0];
+            const youtubeUrl = youtubeUrlInput.value;
+
+            if (file || youtubeUrl) {
+                generateRequest(type, file, youtubeUrl);
+            } else {
+                alert('Please select a file or provide a YouTube URL.');
+            }
+        }
+
+        function generateRequest(type, file, youtubeUrl) {
+            const formData = new FormData();
+            if (file) {
+                formData.append('file', file);
+            } else if (youtubeUrl) {
+                formData.append('youtube_url', youtubeUrl);
+            }
+
+            fetch('/generate_' + type, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('result').innerText = JSON.stringify(data.quiz, null, 2);
+            })
+            .catch(error => console.error('Error:', error));
+        }
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
