@@ -19,10 +19,8 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_community.document_loaders import YoutubeLoader
 import json
 from langchain.chains.combine_documents import create_stuff_documents_chain
+
 load_dotenv()
-
-
-
 
 app = Flask(__name__)
 llm = ChatGoogleGenerativeAI(model="gemini-pro")
@@ -41,8 +39,6 @@ def home():
 
 @app.route('/generate_notes', methods=['POST'])
 def generate_notes():
-
-
     if 'file' in request.files:
         file = request.files['file']
         if file.filename != '':
@@ -63,23 +59,24 @@ def generate_notes():
             return jsonify({'notes': notes})
 
     elif 'youtube_url' in request.form:
-            youtube_url = request.form['youtube_url']
-            filename = youtube_url
-            print(filename)
-            loader = YoutubeLoader.from_youtube_url(filename, add_video_info=True)
-            docs = loader.load()
-            prompt_template = """Produce comprehensive paragraph-based notes derived from the {text}, emphasizing detailed explanations 
+        youtube_url = request.form['youtube_url']
+        filename = youtube_url
+        print(filename)
+        loader = YoutubeLoader.from_youtube_url(filename, add_video_info=True)
+        docs = loader.load()
+        prompt_template = """Produce comprehensive paragraph-based notes derived from the {text}, emphasizing detailed explanations 
             over bullet points. Each subsection should feature elaborative paragraphs elucidating the content 
             under the respective subheadings. Maintain a long-format approach throughout, providing in-depth insights 
             and analysis. The goal is to deliver thorough comprehension of the lecture's topics, facilitating ease of 
             understanding for readers. """
 
-            prompt = PromptTemplate.from_template(prompt_template)
-            llm_chain = LLMChain(llm=llm, prompt=prompt)
+        prompt = PromptTemplate.from_template(prompt_template)
+        llm_chain = LLMChain(llm=llm, prompt=prompt)
 
-            stuff_chain = StuffDocumentsChain(llm_chain=llm_chain, document_variable_name="text", )
-            notes = stuff_chain.run(docs)
-            return jsonify({'notes': notes})
+        stuff_chain = StuffDocumentsChain(llm_chain=llm_chain, document_variable_name="text", )
+        notes = stuff_chain.run(docs)
+        return jsonify({'notes': notes})
+
 
 @app.route('/generate_quiz', methods=['POST'])
 def generate_quiz():
@@ -90,7 +87,7 @@ def generate_quiz():
     print(filename)
 
     loader = YoutubeLoader.from_youtube_url(
-        "https://www.youtube.com/watch?v=Nq7ok-OyEpg&list=PLgUwDviBIf0rAuz8tVcM0AymmhTRsfaLU", add_video_info=True
+        filename, add_video_info=True
     )
 
     text = loader.load()
@@ -109,9 +106,9 @@ def generate_quiz():
     output_parser = StrOutputParser()
 
     chain = (
-            {"text": RunnablePassthrough(),
-             # "response_json": RunnablePassthrough(),
-             "number": RunnablePassthrough()}
+            {"text": RunnablePassthrough(), }
+            # "response_json": RunnablePassthrough(),
+            # "number": RunnablePassthrough()}
             | prompt
             | model
             | output_parser
@@ -120,7 +117,7 @@ def generate_quiz():
     # chain.invoke({"context": docs})
 
     # print(chain.invoke({"text": text, "response_json": json.dumps(RESPONSE_JSON)}))
-    quiz= chain.invoke({"text": text})
+    quiz = chain.invoke({"text": text})
     print(quiz)
     # quiz = {"question": "What was discussed in the video?", "options": ["Option 1", "Option 2", "Option 3", "Option 4"]}
     return jsonify({'quiz': quiz})
