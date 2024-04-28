@@ -44,19 +44,43 @@ def generate_notes():
         if file.filename != '':
             filename = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
             file.save(filename)
+            
+            print("FileName :", filename)
+            try:
+                # Load the file for transcription
+                loader = AssemblyAIAudioTranscriptLoader(
+                    file_path=filename, api_key=os.getenv("ASSEMBLYAI_API_KEY")
+                )
+                docs = loader.load()
 
-            loader = AssemblyAIAudioTranscriptLoader(file_path=filename, api_key=os.getenv("ASSEMBLYAI_API_KEY"))
-            docs = loader.load()
-            prompt_template = """"Create detailed notes summarizing the {text} content of the video presentation, emphasizing the varied headings and subheadings conveyed through distinct sizes and text effects. Ensure that the notes provide a comprehensive understanding of the topic discussed, allowing readers to grasp key points effortlessly."""
+                # Define the prompt and LLM chain
+                prompt_template = """Create detailed notes summarizing the {text} content of the video presentation, emphasizing the varied headings and subheadings conveyed through distinct sizes and text effects. Ensure that the notes provide a comprehensive understanding of the topic discussed, allowing readers to grasp key points effortlessly."""
+                
+                prompt = PromptTemplate.from_template(prompt_template)
+                llm_chain = LLMChain(llm=llm, prompt=prompt)
+                
+                stuff_chain = StuffDocumentsChain(llm_chain=llm_chain, document_variable_name="text")
 
-            prompt = PromptTemplate.from_template(prompt_template)
-            llm_chain = LLMChain(llm=llm, prompt=prompt)
+                # Generate notes
+                notes = stuff_chain.run(docs)
+                print(notes)
+                # Return the notes as JSON
+                return jsonify({'notes': notes})
 
-            stuff_chain = StuffDocumentsChain(llm_chain=llm_chain, document_variable_name="text")
+            except Exception as e:
+                # Handle exceptions gracefully
+                return jsonify({'error': str(e)}), 500
 
-            # print(stuff_chain.run(docs))
-            notes = stuff_chain.run(docs)
-            return jsonify({'notes': notes})
+            finally:
+                # Clean up the uploaded file after processing
+                if os.path.isfile(filename):
+                    try:
+                        os.remove(filename)
+                        print(f"File {filename} has been deleted.")
+                    except Exception as e:
+                        print(f"Error deleting file {filename}: {str(e)}")
+        else:
+            return jsonify({'error': 'No file uploaded'}), 400
 
     elif 'youtube_url' in request.form:
         youtube_url = request.form['youtube_url']
@@ -78,49 +102,100 @@ def generate_notes():
         return jsonify({'notes': notes})
 
 
+
+
+
 @app.route('/generate_quiz', methods=['POST'])
 def generate_quiz():
     # Here you would write code to generate a quiz based on the notes or video content
     # Placeholder code for demonstration
-    youtube_url = request.form['youtube_url']
-    filename = youtube_url
-    print(filename)
+    if 'file' in request.files:
+        file = request.files['file']
+        if file.filename != '':
+            filename = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
+            file.save(filename)
+            
+            print("FileName :", filename)
+            try:
+                # Load the file for transcription
+                loader = AssemblyAIAudioTranscriptLoader(
+                    file_path=filename, api_key=os.getenv("ASSEMBLYAI_API_KEY")
+                )
+                text = loader.load()
+                
+                
+                
+                # Define the prompt and LLM chain
+                prompt_template = """
+                        Text:{text}
+                        You are an expert MCQ maker, Given the above text, it is your job to \n
+                        create a quiz of 10 multiple choice questions.
+                        Make sure that the questions are not repeated and check all the questions to be conforming the text as well.
+                        """
+                prompt = PromptTemplate.from_template(prompt_template)
+                llm_chain = LLMChain(llm=llm, prompt=prompt)
 
-    loader = YoutubeLoader.from_youtube_url(
-        filename, add_video_info=True
-    )
+                stuff_chain = StuffDocumentsChain(llm_chain=llm_chain, document_variable_name="text", )
+                quiz = stuff_chain.run(text)
+                print(quiz)
+                return jsonify({'quiz': quiz})
 
-    text = loader.load()
+            except Exception as e:
+                # Handle exceptions gracefully
+                return jsonify({'error': str(e)}), 500
 
-    model = ChatGoogleGenerativeAI(model="gemini-pro")
+            finally:
+                # Clean up the uploaded file after processing
+                if os.path.isfile(filename):
+                    try:
+                        os.remove(filename)
+                        print(f"File {filename} has been deleted.")
+                    except Exception as e:
+                        print(f"Error deleting file {filename}: {str(e)}")
+        else:
+            return jsonify({'error': 'No file uploaded'}), 400
 
-    prompt = ChatPromptTemplate.from_template(
+
+    elif 'youtube_url' in request.form:
+        youtube_url = request.form['youtube_url']
+        filename = youtube_url
+        print(filename)
+
+        loader = YoutubeLoader.from_youtube_url(
+            filename, add_video_info=True
+        )
+
+        text = loader.load()
+
+        model = ChatGoogleGenerativeAI(model="gemini-pro")
+
+        prompt = ChatPromptTemplate.from_template(
+            """
+            Text:{text}
+            You are an expert MCQ maker, Given the above text, it is your job to \n
+        create a quiz of 10 multiple choice questions.
+        Make sure that the questions are not repeated and check all the questions to be conforming the text as well.
         """
-        Text:{text}
-        You are an expert MCQ maker, Given the above text, it is your job to \n
-    create a quiz of 10 multiple choice questions.
-    Make sure that the questions are not repeated and check all the questions to be conforming the text as well.
-    """
-    )
+        )
 
-    output_parser = StrOutputParser()
+        output_parser = StrOutputParser()
 
-    chain = (
-            {"text": RunnablePassthrough(), }
-            # "response_json": RunnablePassthrough(),
-            # "number": RunnablePassthrough()}
-            | prompt
-            | model
-            | output_parser
-    )
+        chain = (
+                {"text": RunnablePassthrough(), }
+                # "response_json": RunnablePassthrough(),
+                # "number": RunnablePassthrough()}
+                | prompt
+                | model
+                | output_parser
+        )
 
-    # chain.invoke({"context": docs})
+        # chain.invoke({"context": docs})
 
-    # print(chain.invoke({"text": text, "response_json": json.dumps(RESPONSE_JSON)}))
-    quiz = chain.invoke({"text": text})
-    print(quiz)
-    # quiz = {"question": "What was discussed in the video?", "options": ["Option 1", "Option 2", "Option 3", "Option 4"]}
-    return jsonify({'quiz': quiz})
+        # print(chain.invoke({"text": text, "response_json": json.dumps(RESPONSE_JSON)}))
+        quiz = chain.invoke({"text": text})
+        print(quiz)
+        # quiz = {"question": "What was discussed in the video?", "options": ["Option 1", "Option 2", "Option 3", "Option 4"]}
+        return jsonify({'quiz': quiz})
 
 
 if __name__ == '__main__':
