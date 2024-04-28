@@ -67,13 +67,18 @@
             })
             .then(response => response.json())
             .then(data => {
-                document.getElementById('result').innerText = JSON.stringify(data.quiz, null, 2);
+                if (type === 'notes') {
+                    document.getElementById('result').innerText = data.notes;
+                } else {
+                    document.getElementById('result').innerText = JSON.stringify(data.quiz, null, 2);
+                }
             })
             .catch(error => console.error('Error:', error));
         }
     </script>
 </body>
 </html>
+
 
 
 
