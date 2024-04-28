@@ -131,6 +131,7 @@ def generate_quiz():
                         You are an expert MCQ maker, Given the above text, it is your job to \n
                         create a quiz of 10 multiple choice questions.
                         Make sure that the questions are not repeated and check all the questions to be conforming the text as well.
+                        also provide answer to all the mcq's at last.
                         """
                 prompt = PromptTemplate.from_template(prompt_template)
                 llm_chain = LLMChain(llm=llm, prompt=prompt)
@@ -175,6 +176,7 @@ def generate_quiz():
             You are an expert MCQ maker, Given the above text, it is your job to \n
         create a quiz of 10 multiple choice questions.
         Make sure that the questions are not repeated and check all the questions to be conforming the text as well.
+        also provide answer to all the mcq's at last.
         """
         )
 
